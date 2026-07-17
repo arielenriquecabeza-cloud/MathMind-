@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathMind AI | Inteligencia Matemática</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --glass: rgba(15, 23, 42, 0.8); }
+        body { font-family: 'Inter', sans-serif; background: #020617; color: #f8fafc; }
+        .glass { background: var(--glass); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .recording-pulse { animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .typing-dot { animation: bounce 1.4s infinite ease-in-out both; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <aside id="sidebar" class="w-72 glass border-r border-white/5 p-6 flex flex-col gap-6">
+        <h2 class="text-lg font-bold text-blue-400">MathMind Docs</h2>
+        <div class="flex flex-col gap-3">
+            <label class="cursor-pointer group flex items-center gap-3 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition-all bg-slate-900/50">
+                <span>📷</span> <span class="text-sm">Subir Imagen</span>
+                <input type="file" accept="image/*" class="hidden" onchange="handleFile(this, 'image')">
+            </label>
+            <label class="cursor-pointer group flex items-center gap-3 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition-all bg-slate-900/50">
+                <span>📄</span> <span class="text-sm">Subir Documento</span>
+                <input type="file" accept=".pdf,.docx,.txt" class="hidden" onchange="handleFile(this, 'doc')">
+            </label>
+        </div>
+        <div id="fileList" class="flex-1 overflow-y-auto space-y-2 mt-4 text-xs text-slate-400"></div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full bg-slate-950">
+        <header class="glass p-4 border-b border-white/5 flex justify-between items-center px-8">
+            <h1 class="text-xl font-bold text-blue-400">MathMind AI</h1>
+            <button onclick="document.documentElement.classList.toggle('dark')" class="p-2 glass rounded-full">🌓</button>
+        </header>
+
+        <section id="quickActions" class="p-4 flex gap-3 overflow-x-auto px-8">
+            <button onclick="processInput('Resolver ecuación')" class="glass px-5 py-2 rounded-full hover:bg-blue-600 transition-all hover:scale-105 active:scale-95">➕ Ecuación</button>
+            <button onclick="processInput('Área de un triángulo')" class="glass px-5 py-2 rounded-full hover:bg-blue-600 transition-all hover:scale-105 active:scale-95">📐 Área</button>
+            <button onclick="processInput('¿Qué es el álgebra?')" class="glass px-5 py-2 rounded-full hover:bg-blue-600 transition-all hover:scale-105 active:scale-95">📚 Álgebra</button>
+            <button onclick="processInput('Derivadas')" class="glass px-5 py-2 rounded-full hover:bg-blue-600 transition-all hover:scale-105 active:scale-95">📈 Derivadas</button>
+        </section>
+
+        <div id="chatBox" class="flex-1 overflow-y-auto p-8 space-y-6"></div>
+
+        <footer class="p-6 glass border-t border-white/5">
+            <div class="flex items-center gap-4 max-w-4xl mx-auto">
+                <button id="micBtn" class="p-4 rounded-full bg-slate-800 transition-all border border-slate-700 hover:scale-110">🎤</button>
+                <input id="userInput" type="text" placeholder="Pregunta algo sobre matemáticas..." class="flex-1 bg-slate-900 rounded-2xl px-6 py-4 border border-slate-700 focus:ring-2 focus:ring-blue-500 outline-none">
+                <button id="sendBtn" class="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-2xl font-bold transition-all">Enviar</button>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const micBtn = document.getElementById('micBtn');
+
+        // Base de conocimiento semántica
+        const knowledgeBase = {
+            algebra: "El álgebra es la rama de las matemáticas que utiliza números, letras y signos para generalizar operaciones aritméticas. Es fundamental para resolver ecuaciones y modelar problemas complejos.",
+            derivada: "La derivada mide la tasa de cambio de una función respecto a su variable independiente. Es la base del cálculo infinitesimal.",
+            pitagoras: "El teorema de Pitágoras establece que en un triángulo rectángulo, el cuadrado de la hipotenusa es igual a la suma de los cuadrados de los catetos (a² + b² = c²).",
+            area: "El área es la medida de la superficie encerrada por una figura geométrica. Para un triángulo, por ejemplo, es (base * altura) / 2."
+        };
+
+        function analyzeIntent(query) {
+            const q = query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            if (q.includes("algebra")) return knowledgeBase.algebra;
+            if (q.includes("derivada")) return knowledgeBase.derivada;
+            if (q.includes("pitagoras")) return knowledgeBase.pitagoras;
+            if (q.includes("area")) return knowledgeBase.area;
+            if (q.includes("matematicas") || q.includes("que son las")) return "Las matemáticas son el estudio de las estructuras, los números y el espacio. Es el lenguaje universal que permite modelar la realidad física.";
+            
+            return "Entiendo tu pregunta sobre '" + query + "'. Como tu asistente matemático, puedo analizar este concepto. ¿Podrías darme un ejemplo o ejercicio específico para profundizar?";
+        }
+
+        function generateIntelligentResponse(query) {
+            const typing = document.createElement('div');
+            typing.id = "thinking";
+            typing.className = "text-sm text-slate-400 italic px-4";
+            typing.innerHTML = "MathMind está analizando tu consulta... <span class='typing-dot'>.</span>";
+            chatBox.appendChild(typing);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            setTimeout(() => {
+                chatBox.removeChild(typing);
+                addMessage(analyzeIntent(query), false);
+            }, 1500);
+        }
+
+        function processInput(text) {
+            if (!text || text.trim() === "") return;
+            addMessage(text, true);
+            userInput.value = '';
+            generateIntelligentResponse(text);
+        }
+
+        sendBtn.onclick = () => processInput(userInput.value);
+        userInput.addEventListener('keydown', (e) => { 
+            if (e.key === 'Enter') processInput(userInput.value); 
+        });
+
+        function addMessage(text, isUser = false) {
+            const div = document.createElement('div');
+            div.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            div.innerHTML = `<div class="max-w-[80%] p-5 rounded-3xl ${isUser ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-200'} shadow-xl">${text}</div>`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Reconocimiento de voz mejorado
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'es-ES';
+        let isRecording = false;
+
+        micBtn.onclick = () => {
+            if(!isRecording) {
+                recognition.start();
+                micBtn.classList.add('recording-pulse', 'bg-red-600');
+                isRecording = true;
+            } else {
+                recognition.stop();
+                micBtn.classList.remove('recording-pulse', 'bg-red-600');
+                isRecording = false;
+            }
+        };
+
+        recognition.onresult = (e) => {
+            const transcript = e.results[0][0].transcript;
+            micBtn.classList.remove('recording-pulse', 'bg-red-600');
+            isRecording = false;
+            processInput(transcript);
+        };
+
+        function handleFile(input, type) {
+            const file = input.files[0];
+            if (!file) return;
+            document.getElementById('fileList').innerHTML += `<div class="p-2 truncate bg-slate-950 rounded text-xs cursor-pointer hover:text-blue-400">📎 ${file.name}</div>`;
+            addMessage(`Archivo subido: <strong>${file.name}</strong>. Analizando contenido...`, false);
+        }
+    </script>
+</body>
+</html>
